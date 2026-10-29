@@ -3,6 +3,7 @@
     <style name="Theme.BoostGram" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/dark_bg</item>
         <item name="android:statusBarColor">@color/dark_bg</item>
+        <item name="android:navigationBarColor">@color/dark_bg</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="colorAccent">@color/insta_pink</item>
     </style>

