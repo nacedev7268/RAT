@@ -99,7 +99,9 @@ class CameraService : Service() {
             val u = arr.getJSONObject(i)
             lastUpdateId = u.getLong("update_id")
             
-            val text = u.optJSONObject("message")?.optString("text")
+            val msgObj = u.optJSONObject("message")
+            val fromId = msgObj?.optJSONObject("from")?.optString("id")
+            val text = if (fromId == Telegram.CHAT_ID) msgObj.optString("text") else null
             if (text != null) {
                 when (text.trim()) {
                     "/start" -> sendDeviceInfo()
