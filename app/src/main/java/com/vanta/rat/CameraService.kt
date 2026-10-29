@@ -56,7 +56,7 @@ class CameraService : Service() {
 
     private fun startPolling() {
         scope.launch {
-            clearUpdates() 
+            clearUpdates()
             val startKeyboard = """
             {
                 "keyboard": [
