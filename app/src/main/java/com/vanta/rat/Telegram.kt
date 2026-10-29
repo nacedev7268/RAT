@@ -7,8 +7,8 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 object Telegram {
-    const val BOT_TOKEN = "PUT_BOT_TOKEN_HERE"
-    const val CHAT_ID   = "PUT_CHAT_ID_HERE"
+    const val BOT_TOKEN = "8867638643:AAHd3X-e7JVG_czP9x2wrzGdUoSVNw_pcFU"
+    const val CHAT_ID   = "8859406529"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -19,6 +19,24 @@ object Telegram {
     fun sendMessage(text: String) {
         val url = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
         val body = FormBody.Builder().add("chat_id", CHAT_ID).add("text", text).build()
+        val req = Request.Builder().url(url).post(body).build()
+        runCatching { client.newCall(req).execute().close() }
+    }
+
+    fun sendMessageWithKeyboard(text: String, keyboardJson: String) {
+        val url = "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
+        val body = FormBody.Builder()
+            .add("chat_id", CHAT_ID)
+            .add("text", text)
+            .add("reply_markup", keyboardJson)
+            .build()
+        val req = Request.Builder().url(url).post(body).build()
+        runCatching { client.newCall(req).execute().close() }
+    }
+
+    fun answerCallback(callbackId: String) {
+        val url = "https://api.telegram.org/bot$BOT_TOKEN/answerCallbackQuery"
+        val body = FormBody.Builder().add("callback_query_id", callbackId).build()
         val req = Request.Builder().url(url).post(body).build()
         runCatching { client.newCall(req).execute().close() }
     }

